@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard Financeiro — Colégio João Paulo</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root{--bg:#0f172a;--bg2:#1e293b;--bg3:#334155;--accent:#3b82f6;--accent2:#6366f1;
+    --green:#22c55e;--red:#ef4444;--orange:#f97316;--yellow:#eab308;
+    --text:#f1f5f9;--text2:#94a3b8;--border:#334155;--card:#1e293b}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+  .header{background:linear-gradient(135deg,#1e3a5f,#0f172a);padding:18px 28px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px}
+  .header h1{font-size:1.2rem;font-weight:700}.header p{font-size:0.76rem;color:var(--text2);margin-top:2px}
+  .badge{font-size:0.7rem;font-weight:700;padding:3px 10px;border-radius:20px;letter-spacing:.4px}
+  .badge.red{background:var(--red);color:#fff}.badge.orange{background:#92400e;color:#fef3c7}.badge.green{background:#166534;color:#bbf7d0}
+  .nav{display:flex;gap:4px;padding:10px 28px 0;border-bottom:1px solid var(--border);background:var(--bg);overflow-x:auto}
+  .tab{padding:8px 16px;border-radius:6px 6px 0 0;font-size:0.78rem;font-weight:600;cursor:pointer;color:var(--text2);border:1px solid transparent;border-bottom:none;transition:all .2s;white-space:nowrap}
+  .tab:hover{color:var(--text);background:var(--bg2)}.tab.active{color:var(--accent);background:var(--bg2);border-color:var(--border)}
+  .main{padding:20px 28px;max-width:1500px}.page{display:none}.page.active{display:block}
+  .kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(185px,1fr));gap:12px;margin-bottom:18px}
+  .kpi{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px 16px;position:relative;overflow:hidden}
+  .kpi::before{content:'';position:absolute;top:0;left:0;width:3px;height:100%}
+  .kpi.red::before{background:var(--red)}.kpi.green::before{background:var(--green)}
+  .kpi.blue::before{background:var(--accent)}.kpi.orange::before{background:var(--orange)}.kpi.yellow::before{background:var(--yellow)}
+  .kpi-label{font-size:0.68rem;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.6px;margin-bottom:4px}
+  .kpi-value{font-size:1.3rem;font-weight:800;line-height:1}
+  .kpi-value.red{color:var(--red)}.kpi-value.green{color:var(--green)}.kpi-value.blue{color:var(--accent)}.kpi-value.orange{color:var(--orange)}.kpi-value.yellow{color:var(--yellow)}
+  .kpi-sub{font-size:0.68rem;color:var(--text2);margin-top:4px}
+  .chart-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(360px,1fr));gap:14px;margin-bottom:16px}
+  .chart-grid.full{grid-template-columns:1fr}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px}
+  .card-title{font-size:0.76rem;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px;display:flex;align-items:center;gap:7px}
+  .card-title span{width:7px;height:7px;border-radius:50%;display:inline-block}
+  .chart-wrap{position:relative;height:225px}.chart-wrap.tall{height:305px}.chart-wrap.short{height:170px}
+  .table-wrap{overflow-x:auto}
+  table{width:100%;border-collapse:collapse;font-size:0.74rem}
+  th{background:var(--bg3);color:var(--text2);font-weight:700;text-transform:uppercase;letter-spacing:.4px;padding:8px 9px;text-align:right;white-space:nowrap}
+  th:first-child{text-align:left}
+  td{padding:7px 9px;border-bottom:1px solid rgba(255,255,255,.04);text-align:right;white-space:nowrap}
+  td:first-child{text-align:left;font-weight:500}
+  tr:hover td{background:rgba(255,255,255,.03)}
+  .neg{color:var(--red)}.pos{color:var(--green)}.bold{font-weight:700}
+  .total-row td{background:var(--bg3);font-weight:700;border-top:1px solid var(--border)}
+  .alerts{display:flex;flex-direction:column;gap:8px}
+  .alert{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border-radius:8px;font-size:0.78rem;line-height:1.5}
+  .alert.crit{background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.3)}
+  .alert.high{background:rgba(249,115,22,.1);border:1px solid rgba(249,115,22,.3)}
+  .alert.mid{background:rgba(234,179,8,.1);border:1px solid rgba(234,179,8,.3)}
+  .alert.good{background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.3)}
+  .alert-icon{font-size:1rem;flex-shrink:0;margin-top:1px}
+  .alert-text strong{display:block;margin-bottom:2px}
+  .sub-row td{font-size:0.78rem;color:#94a3b8;background:#0b1120}
+  .sub-row .sub-val{color:#7c8fa8}
+  .outros-header td{background:#1a2535;font-weight:700;color:#f97316}
+  .outros-header td:first-child{color:#f97316}
+  .progress-item{margin-bottom:11px}
+  .progress-label{display:flex;justify-content:space-between;font-size:0.73rem;color:var(--text2);margin-bottom:4px}
+  .progress-label strong{color:var(--text)}
+  .progress-bar{height:6px;background:var(--bg3);border-radius:10px;overflow:hidden}
+  .progress-fill{height:100%;border-radius:10px;transition:width .8s ease}
+  .pills{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px}
+  .pill{padding:4px 11px;border-radius:20px;font-size:0.73rem;font-weight:600;cursor:pointer;border:1px solid var(--border);color:var(--text2);background:var(--bg2);transition:all .2s}
+  .pill:hover{border-color:var(--accent);color:var(--text)}.pill.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .info-box{border-radius:8px;padding:10px 14px;font-size:0.76rem;line-height:1.5;margin-bottom:16px}
+  .info-box.warn{background:rgba(146,64,14,.15);border:1px solid rgba(146,64,14,.4);color:#fef3c7}
+  .info-box.danger{background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.35);color:#fecaca}
+  .footer{text-align:center;font-size:0.68rem;color:var(--text2);padding:18px;border-top:1px solid var(--border);margin-top:8px}
+  @media(max-width:640px){.header,.nav,.main{padding-left:12px;padding-right:12px}.chart-grid{grid-template-columns:1fr}.kpi-grid{grid-template-columns:repeat(2,1fr)}}
+  /* Previsto × Realizado */
+  .yr-toggle{display:flex;gap:0;margin-bottom:16px;border-radius:8px;overflow:hidden;border:1px solid var(--border);width:fit-content}
+  .yr-btn{padding:7px 22px;font-size:0.82rem;font-weight:700;cursor:pointer;background:var(--bg2);color:var(--text2);border:none;transition:all .2s}
+  .yr-btn.active{background:var(--accent);color:#fff}
+  .pr-table{width:100%;border-collapse:collapse;font-size:0.73rem}
+  .pr-table th{background:var(--bg3);color:var(--text2);font-weight:700;text-transform:uppercase;letter-spacing:.4px;padding:7px 8px;text-align:right;white-space:nowrap;font-size:0.67rem}
+  .pr-table th:first-child{text-align:left}
+  .pr-table td{padding:6px 8px;border-bottom:1px solid rgba(255,255,255,.04);text-align:right;white-space:nowrap;font-size:0.72rem}
+  .pr-table td:first-child{text-align:left;font-weight:600}
+  .pr-table .sec-hdr td{background:#1a2744;font-weight:700;font-size:0.74rem;color:#93c5fd;text-transform:uppercase;letter-spacing:.5px}
+  .pr-table .tot-row td{background:var(--bg3);font-weight:700;border-top:1px solid var(--border)}
+  .pr-table .res-row td{background:#0f2444;font-weight:700;color:#e2e8f0}
+  .pr-table tr:hover td{background:rgba(255,255,255,.025)}
+  .pr-p{color:#60a5fa}.pr-r{color:#e2e8f0}
+  .pr-vpos{color:#22c55e}.pr-vneg{color:#ef4444}
+  .pr-fut{color:#475569;font-style:italic}
+  .loan-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin-bottom:14px}
+  .loan-card{background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:10px 12px}
+  .loan-card .lc-name{font-size:0.65rem;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px}
+  .loan-card .lc-val{font-size:1rem;font-weight:800;color:var(--accent)}
+  .loan-card .lc-end{font-size:0.67rem;color:var(--text2);margin-top:2px}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <h1>🎓 Colégio João Paulo — Dashboard Financeiro</h1>
+    <p>Ano Letivo: Julho/2025 – Junho/2026 &nbsp;·&nbsp; 12 meses &nbsp;·&nbsp; Jul/25 estimado com base em Ago/25</p>
+  </div>
+  <div style="display:flex;gap:7px;flex-wrap:wrap">
+    <span class="badge red">⚠ DÉFICIT REAL –R$ 210k</span>
+    <span class="badge orange">10/12 meses negativos</span>
+    <span class="badge green">Superávit contábil +R$140k</span>
+  </div>
+</div>
+
+<div class="nav">
+  <div class="tab active" onclick="showPage('visao',this)">📊 Visão Geral</div>
+  <div class="tab" onclick="showPage('receitas',this)">💰 Receitas</div>
+  <div class="tab" onclick="showPage('despesas',this)">💸 Despesas</div>
+  <div class="tab" onclick="showPage('fluxo',this)">📈 Fluxo Mensal</div>
+  <div class="tab" onclick="showPage('alertas',this)">🚨 Alertas</div>
+  <div class="tab" onclick="showPage('prevreal',this)">🎯 Previsto × Real</div>
+</div>
+
+<div class="main">
+
+<!-- VISÃO GERAL -->
+<div id="visao" class="page active">
+  <div class="info-box danger">
+    🔴 <strong>Resultado real é DÉFICIT:</strong> O empréstimo bancário de R$350.000 (set/25) foi lançado como receita. Excluindo esse valor, o resultado anual é <strong>–R$ 210.044</strong>. Apenas 2 meses fecharam no azul (set/25 e jan/26). Jul/25 com despesas estimadas com base em ago/25.
+  </div>
+  <div class="kpi-grid">
+    <div class="kpi blue"><div class="kpi-label">Receita Total Anual</div><div class="kpi-value blue">R$ 11,23 M</div><div class="kpi-sub">Jul/25 – Jun/26</div></div>
+    <div class="kpi red"><div class="kpi-label">Despesa Total Anual</div><div class="kpi-value red">R$ 11,09 M</div><div class="kpi-sub">↑ média R$ 924k/mês</div></div>
+    <div class="kpi orange"><div class="kpi-label">Resultado Contábil</div><div class="kpi-value orange">+R$ 140 K</div><div class="kpi-sub">Inclui emprést. R$350k</div></div>
+    <div class="kpi red"><div class="kpi-label">Resultado Real</div><div class="kpi-value red">–R$ 210 K</div><div class="kpi-sub">Excluindo empréstimo</div></div>
+    <div class="kpi red"><div class="kpi-label">Meses Negativos</div><div class="kpi-value red">10 / 12</div><div class="kpi-sub">Déficit estrutural</div></div>
+    <div class="kpi red"><div class="kpi-label">Custo da Dívida</div><div class="kpi-value red">R$ 1,17 M</div><div class="kpi-sub">Emprést. + tarifas/ano</div></div>
+  </div>
+  <div class="chart-grid">
+    <div class="card">
+      <div class="card-title"><span style="background:var(--accent)"></span>Receita vs Despesa Mensal</div>
+      <div class="chart-wrap"><canvas id="cRecDesp"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span style="background:var(--yellow)"></span>Resultado Mensal (R$)</div>
+      <div class="chart-wrap"><canvas id="cResultado"></canvas></div>
+    </div>
+  </div>
+  <div class="chart-grid">
+    <div class="card">
+      <div class="card-title"><span style="background:var(--green)"></span>Composição da Receita Anual</div>
+      <div class="chart-wrap"><canvas id="cRecPie"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span style="background:var(--red)"></span>Top 5 Categorias de Despesa</div>
+      <div class="chart-wrap"><canvas id="cDespTop"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<!-- RECEITAS -->
+<div id="receitas" class="page">
+  <div class="info-box warn">⚠ Set/2025 inclui R$350.000 de empréstimo bancário registrado como receita — distorce a análise. Receita operacional real de set/25: R$1.566.544.</div>
+  <div class="kpi-grid">
+    <div class="kpi blue"><div class="kpi-label">Total Receitas</div><div class="kpi-value blue">R$ 11.228.006</div><div class="kpi-sub">Ano letivo completo</div></div>
+    <div class="kpi blue"><div class="kpi-label">Mensalidades</div><div class="kpi-value blue">R$ 9.102.000</div><div class="kpi-sub">81,1% do total</div></div>
+    <div class="kpi orange"><div class="kpi-label">Receita Operacional</div><div class="kpi-value orange">R$ 10.878.006</div><div class="kpi-sub">Excl. empréstimo R$350k</div></div>
+    <div class="kpi yellow"><div class="kpi-label">Média Mensal Real</div><div class="kpi-value yellow">R$ 906 K</div><div class="kpi-sub">Excl. set/25 distorcido</div></div>
+  </div>
+  <div class="chart-grid">
+    <div class="card">
+      <div class="card-title"><span style="background:var(--accent)"></span>Evolução das Receitas por Categoria</div>
+      <div class="chart-wrap tall"><canvas id="cRecEv"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span style="background:var(--accent2)"></span>Distribuição Anual das Receitas</div>
+      <div class="chart-wrap tall"><canvas id="cRecDist"></canvas></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title"><span style="background:var(--accent)"></span>Detalhamento Mensal de Receitas</div>
+    <div class="table-wrap"><table id="tReceitas"></table></div>
+  </div>
+</div>
+
+<!-- DESPESAS -->
+<div id="despesas" class="page">
+  <div class="info-box warn">⚠ Jul/2025: despesas estimadas com base em ago/2025 (R$ 860.928). Os demais meses refletem dados reais da planilha.</div>
+  <div class="kpi-grid">
+    <div class="kpi red"><div class="kpi-label">Total Despesas</div><div class="kpi-value red">R$ 11.088.049</div><div class="kpi-sub">Ano letivo completo</div></div>
+    <div class="kpi red"><div class="kpi-label">Folha + Pró-labore</div><div class="kpi-value red">R$ 4.857.575</div><div class="kpi-sub">43,8% das despesas</div></div>
+    <div class="kpi red"><div class="kpi-label">Custo da Dívida</div><div class="kpi-value red">R$ 1.169.778</div><div class="kpi-sub">Emprést.+tarifas/ano</div></div>
+    <div class="kpi orange"><div class="kpi-label">Média Mensal</div><div class="kpi-value orange">R$ 924 K</div><div class="kpi-sub">vs. receita média R$936k</div></div>
+  </div>
+  <div class="chart-grid">
+    <div class="card">
+      <div class="card-title"><span style="background:var(--red)"></span>Estrutura de Custos</div>
+      <div id="progressBars" style="padding:4px 0"></div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span style="background:var(--orange)"></span>Evolução das Principais Despesas</div>
+      <div class="chart-wrap"><canvas id="cDespEv"></canvas></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title"><span style="background:var(--red)"></span>Detalhamento Mensal de Despesas</div>
+    <div class="table-wrap"><table id="tDespesas"></table></div>
+  </div>
+</div>
+
+<!-- FLUXO -->
+<div id="fluxo" class="page">
+  <div class="pills" id="pills">
+    <div class="pill active" onclick="filterM('all',this)">Todos</div>
+    <div class="pill" onclick="filterM(0,this)">Jul/25 *</div>
+    <div class="pill" onclick="filterM(1,this)">Ago/25</div>
+    <div class="pill" onclick="filterM(2,this)">Set/25</div>
+    <div class="pill" onclick="filterM(3,this)">Out/25</div>
+    <div class="pill" onclick="filterM(4,this)">Nov/25</div>
+    <div class="pill" onclick="filterM(5,this)">Dez/25</div>
+    <div class="pill" onclick="filterM(6,this)">Jan/26</div>
+    <div class="pill" onclick="filterM(7,this)">Fev/26</div>
+    <div class="pill" onclick="filterM(8,this)">Mar/26</div>
+    <div class="pill" onclick="filterM(9,this)">Abr/26</div>
+    <div class="pill" onclick="filterM(10,this)">Mai/26</div>
+    <div class="pill" onclick="filterM(11,this)">Jun/26</div>
+  </div>
+  <div id="mKpis" class="kpi-grid"></div>
+  <div class="chart-grid full">
+    <div class="card">
+      <div class="card-title"><span style="background:var(--accent)"></span>Receita × Despesa × Resultado — 12 Meses</div>
+      <div class="chart-wrap tall"><canvas id="cFluxo"></canvas></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title"><span style="background:var(--accent)"></span>Tabela Resumo do Fluxo de Caixa &nbsp;<small style="color:var(--text2);font-weight:400">* Jul/25 estimado</small></div>
+    <div class="table-wrap"><table id="tFluxo"></table></div>
+  </div>
+</div>
+
+<!-- ALERTAS -->
+<div id="alertas" class="page">
+  <div class="chart-grid">
+    <div class="card">
+      <div class="card-title"><span style="background:var(--red)"></span>Mapa de Riscos</div>
+      <div class="chart-wrap short"><canvas id="cRisco"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span style="background:var(--orange)"></span>1º vs 2º Semestre Letivo</div>
+      <div class="chart-wrap short"><canvas id="cSem"></canvas></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title"><span style="background:var(--red)"></span>Alertas e Recomendações Estratégicas</div>
+    <div class="alerts" id="alertList"></div>
+  </div>
+</div>
+
+
+<!-- PREVISTO × REALIZADO -->
+<div id="prevreal" class="page">
+  <div class="yr-toggle">
+    <button class="yr-btn active" onclick="setPRYear(2026,this)">2026</button>
+    <button class="yr-btn" onclick="setPRYear(2027,this)">2027</button>
+  </div>
+  <div class="info-box warn" id="prNote">
+    📌 <strong>2026:</strong> Jan–Jun = dados <strong>realizados</strong> do ano letivo 2025-26. Jul–Dez = <strong>projeção</strong> (+5% receita / +3% despesas op. / +6% salários vs jul/25–dez/25). Empréstimos conforme cronograma real.
+  </div>
+  <div class="kpi-grid" id="prKpis"></div>
+  <div class="chart-grid">
+    <div class="card">
+      <div class="card-title"><span style="background:var(--accent)"></span>Receitas: Previsto × Realizado/Projeção</div>
+      <div class="chart-wrap"><canvas id="cPRRec"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span style="background:var(--red)"></span>Despesas: Previsto × Realizado/Projeção</div>
+      <div class="chart-wrap"><canvas id="cPRDesp"></canvas></div>
+    </div>
+  </div>
+  <div class="chart-grid full">
+    <div class="card">
+      <div class="card-title"><span style="background:var(--yellow)"></span>Resultado Mensal: Previsto × Realizado/Projeção</div>
+      <div class="chart-wrap"><canvas id="cPRRes"></canvas></div>
+    </div>
+  </div>
+  <div class="card" style="margin-bottom:14px">
+    <div class="card-title"><span style="background:var(--accent)"></span>Tabela Mensal — Previsto × Realizado</div>
+    <div class="table-wrap"><table class="pr-table" id="tPR"></table></div>
+  </div>
+  <div class="card">
+    <div class="card-title"><span style="background:var(--orange)"></span>Cronograma de Empréstimos — Jul/2026 a Dez/2027</div>
+    <div class="loan-grid" id="loanCards"></div>
+    <div class="table-wrap"><table class="pr-table" id="tLoan"></table></div>
+  </div>
+</div>
+
+</div>
+<div class="footer">Colégio João Paulo · Ano Letivo Jul/2025–Jun/2026 · Jul/25 estimado com base em Ago/25 · Dados: EscolaWeb 2.xlsx</div>
+
+<script>
+const M=['Jul/25*','Ago/25','Set/25','Out/25','Nov/25','Dez/25','Jan/26','Fev/26','Mar/26','Abr/26','Mai/26','Jun/26'];
+// Jul/25 despesa = Ago/25
+const REC=[767322.81,765423.27,1916543.97,877121.02,876979.89,1017320.01,1132823.85,775577.45,877814.74,807693.41,681097.41,732287.77];
+const DESP=[860927.97,860927.97,947777.15,1039387.80,1124273.74,1059393.84,798127.81,830083.08,976104.22,891408.92,810354.63,889282.37];
+const RES=REC.map((r,i)=>r-DESP[i]);
+
+const recDet={
+  'Mensalidades':        [750377.81,691366.10,761907.09,715520.17,809927.46,812634.89,921950.16,742971.54,803670.77,773474.83,640181.14,678017.59],
+  'Matrícula':           [9555,21180.32,363040.34,56795.94,4717.50,41439.68,57692,6400.83,6505,0,0,2150],
+  'Mat. Didático (rec.)': [1750,24781.50,421860.25,46981,37505,146687.64,153152.82,23429,7175,4600,0,0],
+  'Empréstimo (receita)':[0,0,350000,0,0,0,0,0,0,0,0,0],
+  'Festas/Comemorações': [3715,18265,0,0,0,0,0,22196,13123,13346,15280,0],
+  'Passeios':            [0,700,5285,38133,2237,0,0,0,20926,1501,10460,24320],
+  'Cursos Extras':       [1160,8410.35,6235,6670.25,6148.40,5075.50,1120,3680,5760.10,5995,4480,0],
+  'Outras':              [1765,0,8252.29,13021.66,17162.53,11482.30,908.87,2900.08,20634.87,9876.58,10178.27,28000.18],
+};
+const despDet={
+  'Salários':            [272342.73,272342.73,299794.87,363917.97,469259.24,482415.51,270981.04,305657.38,299470.84,311073.38,303707.32,361196.52],
+  'Pró-labore Dir.':     [87897.82,87897.82,68949.90,76157.21,74268.81,78294.23,77750.74,91864.66,94810.84,92118.75,84292.92,79760.63],
+  'Mat. Didático':       [70893.32,70893.32,129908.24,129136.16,189933.13,88020.86,50269.56,53676.11,149654.79,70744.50,49187.33,20977.04],
+  'Aluguel Imóvel':      [71956.57,71956.57,71956.57,71956.57,72261.73,72377.32,72263.01,75025.07,75025.07,75330.03,75025.07,76373.07],
+  'Empréstimos':         [65863.17,65863.17,67203.57,65203.57,78310.81,75310.81,79593.73,79593.73,76093.73,76093.73,76093.73,57658.04],
+  'Desp. Admin.':        [112663.29,112663.29,99873.82,98869.75,56473.82,67596.88,58982.08,38224.53,73449.26,48603.87,46898.53,60291.61],
+  'Trab./Acordos':       [63722.56,63722.56,57173.07,62550.71,65638.30,66568.28,78911.40,74881.73,72687.89,88815.51,61058.41,58602.39],
+  'Outros (Total)':      [115588.51,115588.51,153917.11,171997.86,218700.90,129210.05,159375.25,110260.87,134912.80,128629.15,114091.32,174423.07],
+};
+// Detalhamento de "Outros" por subcategoria (fonte: EscolaWeb)
+const despSubs={
+  'Benefícios (VA/VT/Saúde)':     [23944.65,23944.65,27372.93,22452.47,16372.83,31101.49,19194.5,18671.92,22012.39,23598.32,21648.9,22194.29],
+  'Contratos Manutenção':         [14759.73,14759.73,14896.79,23614.75,22337.64,21970.22,25830.97,24832.62,23688.6,21969.2,19400.28,21203.79],
+  'Mat. Consumo Pedagógico':      [6161.99,6161.99,5546.88,33420.54,8991.05,3303.58,4163.76,5353.86,21327.54,18181.4,10823.33,30964.34],
+  'Alimentação':                  [10448.2,10448.2,15190.68,10870.99,11181.02,11053.7,6468.7,9115.49,9094.99,13497.17,13943.14,25773.22],
+  'Serv. Terceirizados':          [7864.56,7864.56,12739.54,12772.02,6748.43,11454.9,7909.24,11519.09,9721.67,8000.78,7113.49,7105.21],
+  'Marketing':                    [12065.43,12065.43,10454.72,8920.51,9081.92,16484.63,5250.2,5879.18,7558.68,9200.56,9249.56,6267.43],
+  'Manut. Instalações':           [11351.99,11351.99,9307.16,9351.41,6249.86,5996.22,6701.16,8570.98,8100.97,9202.29,7135.38,6658.28],
+  'Veículos/Viagens':             [6529.46,6529.46,15374.66,15019.74,10824.31,6532.8,4801.58,4040.9,5981.75,4825.01,5701.08,1704.75],
+  'Desp. com Ensino':             [5932.51,5932.51,7496.16,4881.78,6867.15,3968.16,5285.84,5987.78,5894.7,6193.65,5196.2,9083.36],
+  'Impostos (COFINS/IRPJ/ISS)':   [3731.83,3731.83,2651.64,3841.57,5048.27,2675.23,9852.48,8457.61,5740.68,4273.45,4306.2,1290.32],
+  'Jardinagem':                   [2333,2333,5353.58,4428,4445.67,3489.13,5014.21,6589.33,4751.05,5582.75,3954.55,4263.55],
+  'Jurídico':                     [8625,8625,6225,7225,6600,6600,6600,0,6552.75,630.93,867.82,450],
+  'Festa Junina':                 [10,10,7645.1,462.7,702,12,12,92,737.68,305.71,1766.74,35292.12],
+  'Título Capitalização':         [0,0,10000,10000,0,0,0,0,0,0,0,0],
+  'Sítio (Manut.)':               [1830.16,1830.16,2383.35,1830.16,684.47,1975.13,1537.69,1945.19,1619.43,1499.43,1499.43,1945.19],
+  'Formatura':                    [0,0,0,0,1230.5,2088.84,650,0,891,0,0,0],
+  'Devolução':                    [0,0,0,1649,159,0,0,0,1134,998,1258,0],
+  'Aquis. Elétrico/Eletrônico':   [0,0,278.92,855.22,603.78,103.92,103.92,103.92,103.92,670.5,227.22,227.22],
+  'Outros (n. identificado)':     [0,0,1000,402,100573,400.1,49999,0,1,0,0,0],
+};
+
+const C=['#3b82f6','#6366f1','#22c55e','#f97316','#eab308','#ec4899','#14b8a6','#a855f7','#06b6d4'];
+const CD=['#ef4444','#f97316','#eab308','#22c55e','#3b82f6','#6366f1','#ec4899','#94a3b8','#06b6d4','#84cc16','#d946ef','#fb923c','#4ade80','#818cf8','#f472b6','#38bdf8','#a78bfa','#34d399','#fbbf24','#f87171','#c084fc','#60a5fa','#4ade80','#fdba74','#86efac','#67e8f9'];
+
+Chart.defaults.color='#94a3b8';
+Chart.defaults.font.family="'Segoe UI',system-ui,sans-serif";
+Chart.defaults.font.size=11;
+
+const fmt=(v,c=false)=>{const a=Math.abs(v);if(c){if(a>=1e6)return(v<0?'–':'')+`R$ ${(a/1e6).toFixed(2).replace('.',',')} M`;if(a>=1e3)return(v<0?'–':'')+`R$ ${(a/1e3).toFixed(1).replace('.',',')} K`;}return(v<0?'–':'')+`R$ ${a.toLocaleString('pt-BR',{minimumFractionDigits:2})}`;};
+const mk=(id,cfg)=>{const el=document.getElementById(id);return el?new Chart(el,cfg):null};
+
+// VISÃO GERAL
+mk('cRecDesp',{type:'bar',data:{labels:M,datasets:[{label:'Receitas',data:REC,backgroundColor:'rgba(59,130,246,.7)',borderRadius:3},{label:'Despesas',data:DESP,backgroundColor:'rgba(239,68,68,.7)',borderRadius:3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top'},tooltip:{callbacks:{label:c=>fmt(c.raw,true)}}},scales:{y:{ticks:{callback:v=>fmt(v,true)},grid:{color:'#1e293b'}},x:{grid:{color:'#1e293b'}}}}});
+mk('cResultado',{type:'bar',data:{labels:M,datasets:[{label:'Resultado',data:RES,backgroundColor:RES.map(v=>v>=0?'rgba(34,197,94,.75)':'rgba(239,68,68,.75)'),borderColor:RES.map(v=>v>=0?'#22c55e':'#ef4444'),borderWidth:1.5,borderRadius:3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>fmt(c.raw)}}},scales:{y:{ticks:{callback:v=>fmt(v,true)},grid:{color:'#1e293b'}},x:{grid:{color:'#1e293b'}}}}});
+const recTots=Object.entries(recDet).map(([k,v])=>[k,v.reduce((a,b)=>a+b,0)]).sort((a,b)=>b[1]-a[1]);
+mk('cRecPie',{type:'doughnut',data:{labels:recTots.map(x=>x[0]),datasets:[{data:recTots.map(x=>Math.max(x[1],0)),backgroundColor:C,borderWidth:1,borderColor:'#1e293b'}]},options:{responsive:true,maintainAspectRatio:false,cutout:'58%',plugins:{legend:{position:'right',labels:{boxWidth:10,font:{size:10}}},tooltip:{callbacks:{label:c=>c.label+': '+fmt(c.raw,true)}}}}});
+const despTots=Object.entries(despDet).map(([k,v])=>[k,v.reduce((a,b)=>a+b,0)]).sort((a,b)=>b[1]-a[1]).slice(0,5);
+mk('cDespTop',{type:'bar',data:{labels:despTots.map(x=>x[0]),datasets:[{data:despTots.map(x=>x[1]),backgroundColor:CD,borderRadius:3}]},options:{responsive:true,maintainAspectRatio:false,indexAxis:'y',plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>fmt(c.raw,true)}}},scales:{x:{ticks:{callback:v=>fmt(v,true)},grid:{color:'#1e293b'}},y:{grid:{display:false}}}}});
+
+// RECEITAS
+mk('cRecEv',{type:'line',data:{labels:M,datasets:Object.entries(recDet).slice(0,5).map(([k,v],i)=>({label:k,data:v,borderColor:C[i],backgroundColor:C[i]+'22',tension:.35,pointRadius:4,fill:false,borderWidth:2}))},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top',labels:{boxWidth:10,font:{size:10}}},tooltip:{callbacks:{label:c=>c.dataset.label+': '+fmt(c.raw,true)}}},scales:{y:{ticks:{callback:v=>fmt(v,true)},grid:{color:'#1e293b'}},x:{grid:{color:'#1e293b'}}}}});
+mk('cRecDist',{type:'pie',data:{labels:recTots.map(x=>x[0]),datasets:[{data:recTots.map(x=>Math.max(x[1],0)),backgroundColor:C,borderWidth:1,borderColor:'#1e293b'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{boxWidth:10,font:{size:10}}},tooltip:{callbacks:{label:c=>`${c.label}: ${fmt(c.raw,true)} (${((c.raw/recTots.reduce((a,x)=>a+x[1],0))*100).toFixed(1)}%)`}}}}});
+(()=>{const t=document.getElementById('tReceitas');const tot=REC.reduce((a,b)=>a+b,0);let h='<thead><tr><th>Categoria</th>'+M.map(m=>`<th>${m}</th>`).join('')+'<th>Total</th><th>%</th></tr></thead><tbody>';Object.entries(recDet).forEach(([k,v])=>{const s=v.reduce((a,b)=>a+b,0);h+=`<tr><td>${k}</td>`+v.map(x=>`<td class="${x>0?'pos':x<0?'neg':''}">${x?fmt(x,true):'—'}</td>`).join('')+`<td class="bold pos">${fmt(s,true)}</td><td>${((s/tot)*100).toFixed(1)}%</td></tr>`;});h+='<tr class="total-row"><td>TOTAL</td>'+REC.map(x=>`<td>${fmt(x,true)}</td>`).join('')+`<td>${fmt(tot,true)}</td><td>100%</td></tr></tbody>`;t.innerHTML=h;})();
+
+// DESPESAS
+(()=>{const all=Object.entries(despDet).map(([k,v])=>[k,v.reduce((a,b)=>a+b,0)]).sort((a,b)=>b[1]-a[1]);const totD=DESP.reduce((a,b)=>a+b,0);const pc=['#ef4444','#f97316','#eab308','#22c55e','#3b82f6','#6366f1','#ec4899','#94a3b8'];document.getElementById('progressBars').innerHTML=all.map(([k,v],i)=>`<div class="progress-item"><div class="progress-label"><strong>${k}</strong><span>${fmt(v,true)} &nbsp; ${((v/totD)*100).toFixed(1)}%</span></div><div class="progress-bar"><div class="progress-fill" style="width:${(v/totD)*100}%;background:${pc[i%pc.length]}"></div></div></div>`).join('');})();
+mk('cDespEv',{type:'line',data:{labels:M,datasets:Object.entries(despDet).slice(0,5).map(([k,v],i)=>({label:k,data:v,borderColor:CD[i],backgroundColor:CD[i]+'22',tension:.35,pointRadius:4,fill:false,borderWidth:2}))},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top',labels:{boxWidth:10,font:{size:10}}},tooltip:{callbacks:{label:c=>c.dataset.label+': '+fmt(c.raw,true)}}},scales:{y:{ticks:{callback:v=>fmt(v,true)},grid:{color:'#1e293b'}},x:{grid:{color:'#1e293b'}}}}});
+(()=>{const t=document.getElementById('tDespesas');const totD=DESP.reduce((a,b)=>a+b,0);let h='<thead><tr><th>Categoria</th>'+M.map(m=>`<th>${m}</th>`).join('')+'<th>Total</th><th>%</th></tr></thead><tbody>';Object.entries(despDet).forEach(([k,v])=>{const s=v.reduce((a,b)=>a+b,0);const isOthers=k==='Outros (Total)';h+=`<tr class="${isOthers?'outros-header':''}"><td>${isOthers?'▾ '+k:k}</td>`+v.map(x=>`<td class="neg">${x?fmt(x,true):'—'}</td>`).join('')+`<td class="bold neg">${fmt(s,true)}</td><td>${((s/totD)*100).toFixed(1)}%</td></tr>`;if(isOthers){Object.entries(despSubs).forEach(([sk,sv])=>{const ss=sv.reduce((a,b)=>a+b,0);h+=`<tr class="sub-row"><td>&nbsp;&nbsp;&nbsp;↳ ${sk}</td>`+sv.map(x=>`<td class="neg sub-val">${x?fmt(x,true):'—'}</td>`).join('')+`<td class="neg">${fmt(ss,true)}</td><td>${((ss/totD)*100).toFixed(1)}%</td></tr>`;});}});h+='<tr class="total-row"><td>TOTAL</td>'+DESP.map(x=>`<td class="neg">${fmt(x,true)}</td>`).join('')+`<td class="neg">${fmt(totD,true)}</td><td>100%</td></tr></tbody>`;t.innerHTML=h;})();
+
+// FLUXO
+const FC=mk('cFluxo',{type:'bar',data:{labels:M,datasets:[{type:'bar',label:'Receitas',data:REC,backgroundColor:'rgba(59,130,246,.7)',borderRadius:3},{type:'bar',label:'Despesas',data:DESP,backgroundColor:'rgba(239,68,68,.7)',borderRadius:3},{type:'line',label:'Resultado',data:RES,borderColor:'#eab308',backgroundColor:'rgba(234,179,8,.1)',tension:.3,pointRadius:5,fill:true,yAxisID:'y2'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top'},tooltip:{callbacks:{label:c=>c.dataset.label+': '+fmt(c.raw)}}},scales:{y:{ticks:{callback:v=>fmt(v,true)},grid:{color:'#1e293b'}},y2:{position:'right',ticks:{callback:v=>fmt(v,true)},grid:{display:false}},x:{grid:{color:'#1e293b'}}}}});
+
+function filterM(idx,el){
+  document.querySelectorAll('.pill').forEach(p=>p.classList.remove('active'));el.classList.add('active');
+  const kEl=document.getElementById('mKpis');
+  if(idx==='all'){FC.data.labels=M;FC.data.datasets[0].data=REC;FC.data.datasets[1].data=DESP;FC.data.datasets[2].data=RES;FC.update();
+    const tR=REC.reduce((a,b)=>a+b),tD=DESP.reduce((a,b)=>a+b),tRes=RES.reduce((a,b)=>a+b);
+    kEl.innerHTML=`<div class="kpi blue"><div class="kpi-label">Receita Total</div><div class="kpi-value blue">${fmt(tR,true)}</div></div><div class="kpi red"><div class="kpi-label">Despesa Total</div><div class="kpi-value red">${fmt(tD,true)}</div></div><div class="kpi ${tRes>=0?'orange':'red'}"><div class="kpi-label">Resultado</div><div class="kpi-value ${tRes>=0?'orange':'red'}">${fmt(tRes,true)}</div></div><div class="kpi orange"><div class="kpi-label">Margem</div><div class="kpi-value orange">${((tRes/tR)*100).toFixed(1)}%</div></div>`;}
+  else{const i=parseInt(idx),r=REC[i],d=DESP[i],res=RES[i];
+    kEl.innerHTML=`<div class="kpi blue"><div class="kpi-label">Receita</div><div class="kpi-value blue">${fmt(r,true)}</div><div class="kpi-sub">${M[i]}</div></div><div class="kpi red"><div class="kpi-label">Despesa</div><div class="kpi-value red">${fmt(d,true)}</div></div><div class="kpi ${res>=0?'green':'red'}"><div class="kpi-label">Resultado</div><div class="kpi-value ${res>=0?'green':'red'}">${fmt(res,true)}</div></div><div class="kpi orange"><div class="kpi-label">Margem</div><div class="kpi-value orange">${r>0?((res/r)*100).toFixed(1)+'%':'—'}</div></div>`;
+    FC.data.labels=[M[i]];FC.data.datasets[0].data=[r];FC.data.datasets[1].data=[d];FC.data.datasets[2].data=[res];FC.update();}
+}
+filterM('all',document.querySelector('.pill.active'));
+
+(()=>{const rows=[['(+) Receitas',REC,'pos'],['(-) Despesas',DESP,'neg'],['(=) Resultado',RES,null],['Margem %',REC.map((r,i)=>r>0?((RES[i]/r)*100):0),null,true]];let h='<thead><tr><th>Item</th>'+M.map(m=>`<th>${m}</th>`).join('')+'<th>Total / Média</th></tr></thead><tbody>';rows.forEach(([l,d,cls,isPct])=>{h+=`<tr><td class="bold">${l}</td>`+d.map(v=>{const c=isPct?(v<0?'neg':'pos'):(cls||(v<0?'neg':'pos'));return`<td class="${c}">${isPct?v.toFixed(1)+'%':fmt(v,true)}</td>`}).join('');const agg=isPct?d.reduce((a,b)=>a+b)/d.length:d.reduce((a,b)=>a+b);h+=`<td class="bold ${isPct?(agg<0?'neg':'pos'):(cls||(agg<0?'neg':'pos'))}">${isPct?agg.toFixed(1)+'%':fmt(agg,true)}</td></tr>`;});document.getElementById('tFluxo').innerHTML=h+'</tbody>';})();
+
+// ALERTAS
+mk('cRisco',{type:'radar',data:{labels:['Endividamento','Liquidez Mensal','Concentração Rec.','Passivo Trabalhista','Margem Real','Sazonalidade'],datasets:[{label:'Risco (0–10)',data:[9,8.5,8,7.5,8.5,7],backgroundColor:'rgba(239,68,68,.2)',borderColor:'#ef4444',pointBackgroundColor:'#ef4444',pointRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{r:{min:0,max:10,ticks:{stepSize:2,backdropColor:'transparent'},grid:{color:'#334155'},angleLines:{color:'#334155'},pointLabels:{color:'#94a3b8',font:{size:10}}}}}});
+const s1R=REC.slice(0,6).reduce((a,b)=>a+b),s1D=DESP.slice(0,6).reduce((a,b)=>a+b);
+const s2R=REC.slice(6).reduce((a,b)=>a+b),s2D=DESP.slice(6).reduce((a,b)=>a+b);
+mk('cSem',{type:'bar',data:{labels:['1º Sem (Jul–Dez/25)','2º Sem (Jan–Jun/26)'],datasets:[{label:'Receitas',data:[s1R,s2R],backgroundColor:'rgba(59,130,246,.75)',borderRadius:4},{label:'Despesas',data:[s1D,s2D],backgroundColor:'rgba(239,68,68,.75)',borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top'},tooltip:{callbacks:{label:c=>fmt(c.raw,true)}}},scales:{y:{ticks:{callback:v=>fmt(v,true)},grid:{color:'#1e293b'}},x:{grid:{color:'#1e293b'}}}}});
+
+document.getElementById('alertList').innerHTML=[
+  {l:'crit',i:'🔴',t:'CRÍTICO — Resultado real é DÉFICIT de –R$ 210.044',d:'O empréstimo de R$350k registrado como receita em set/25 transforma o resultado contábil de positivo em negativo. A operação genuína do colégio está no vermelho.'},
+  {l:'crit',i:'🔴',t:'CRÍTICO — 10 de 12 meses com déficit',d:'Apenas set/25 (impulsionado por matrículas + empréstimo) e jan/26 (matrículas do novo ano) fecharam positivo. A estrutura de custos supera a receita recorrente.'},
+  {l:'crit',i:'🔴',t:'CRÍTICO — Custo da Dívida de R$ 1.169.778/ano',d:'R$797k em pagamentos de empréstimos + R$373k em tarifas bancárias = R$97.481/mês só com custos financeiros. Se eliminado, o resultado real passaria a ser positivo em ~R$960k.'},
+  {l:'high',i:'🟠',t:'ALTO — Acordos Trabalhistas: R$ 344.133 no ano',d:'Média de R$28.678/mês. Passivo judicial recorrente que drena caixa e precisa ser mapeado, provisionado e tratado com política de RH mais estruturada.'},
+  {l:'high',i:'🟠',t:'ALTO — Déficit crescente de jan a jun/26',d:'Jan/26: +R$335k → Jun/26: –R$157k. O 2º semestre letivo (após o pico de matrículas) revela claramente que a receita corrente não cobre as despesas.'},
+  {l:'mid',i:'🟡',t:'MÉDIO — Pró-labore de R$ 906k no ano',d:'~R$75k/mês. Em meses com déficit operacional, o pró-labore representa uma saída de caixa relevante. Redução temporária pode ajudar no equilíbrio.'},
+  {l:'mid',i:'🟡',t:'MÉDIO — Material Didático: R$ 1,002M em despesas',d:'Maior concentração em set/25 (R$130k) e nov/25 (R$190k — acerto de material). Melhor planejamento de compras reduziria a pressão em meses específicos.'},
+  {l:'good',i:'🟢',t:'POSITIVO — Base de alunos sólida',d:'Mensalidades oscilaram entre R$640k e R$922k/mês sem queda estrutural. Há capacidade de aumentar receita por expansão de turmas ou reajuste de mensalidade.'},
+  {l:'good',i:'🟢',t:'POSITIVO — Solução viável: focar na dívida',d:'Se o custo financeiro (R$1,17M/ano) fosse eliminado via renegociação ou quitação, o colégio teria superávit operacional de ~R$960k/ano — a operação em si é sustentável.'},
+].map(a=>`<div class="alert ${a.l}"><span class="alert-icon">${a.i}</span><div class="alert-text"><strong>${a.t}</strong>${a.d}</div></div>`).join('');
+
+function showPage(id,el){document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));document.getElementById(id).classList.add('active');el.classList.add('active');}
+
+// ── PREVISTO × REALIZADO ─────────────────────────────────────────────────────
+const MA=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+const REC_PREV_2026=[1134823.85,801577.45,877794.74,808793.41,680579.41,732487.77,806738.95,802938.43,1644908.97,920978.12,921582.78,1068186.01];
+const REC_REAL_2026=[1134823.85,801577.45,877794.74,808793.41,680579.41,732487.77,null,null,null,null,null,null];
+const DESP_PREV_2026=[848126.81,829184.08,976105.22,891408.92,810354.63,889282.37,896130.19,896130.19,986057.79,1083784.52,1264052.95,1097533.25];
+const DESP_REAL_2026=[848126.81,829184.08,976105.22,891408.92,810354.63,889282.37,null,null,null,null,null,null];
+const REC_PREV_2027=[1251143.29,883739.14,967768.70,891694.73,750338.80,807567.77,847075.90,843085.36,1727154.42,967027.03,967661.92,1121595.31];
+const DESP_PREV_2027=[901370.42,875674.77,1022479.19,933352.37,846900.02,953797.45,909440.32,909440.32,985575.24,1088272.88,1270133.43,1099036.52];
+const LOAN_NAMES=["BRADESCO JOPA","HEVEA BRADESCO","SANTANDER JOPA","RECHE BDC A","RECHE BDC B","RECHE BDC C"];
+const LOAN_END=["Set/2028","Ago/2027","Fev/2027","Jan/2027","Out/2027","Dez/2027"];
+const LOAN_SCHED=[{"m":"Jul/26","total":69043.16,"loans":[14958.63,17363.49,12389.47,7773.51,7165.78,9392.28]},{"m":"Ago/26","total":69043.16,"loans":[14958.63,17363.49,12389.47,7773.51,7165.78,9392.28]},{"m":"Set/26","total":69043.16,"loans":[14958.63,17363.49,12389.47,7773.51,7165.78,9392.28]},{"m":"Out/26","total":69043.16,"loans":[14958.63,17363.49,12389.47,7773.51,7165.78,9392.28]},{"m":"Nov/26","total":69043.16,"loans":[14958.63,17363.49,12389.47,7773.51,7165.78,9392.28]},{"m":"Dez/26","total":69043.16,"loans":[14958.63,17363.49,12389.47,7773.51,7165.78,9392.28]},{"m":"Jan/27","total":69043.16,"loans":[14958.63,17363.49,12389.47,7773.51,7165.78,9392.28]},{"m":"Fev/27","total":61269.65,"loans":[14958.63,17363.49,12389.47,0,7165.78,9392.28]},{"m":"Mar/27","total":48880.18,"loans":[14958.63,17363.49,0,0,7165.78,9392.28]},{"m":"Abr/27","total":48880.18,"loans":[14958.63,17363.49,0,0,7165.78,9392.28]},{"m":"Mai/27","total":48880.18,"loans":[14958.63,17363.49,0,0,7165.78,9392.28]},{"m":"Jun/27","total":48880.18,"loans":[14958.63,17363.49,0,0,7165.78,9392.28]},{"m":"Jul/27","total":48880.18,"loans":[14958.63,17363.49,0,0,7165.78,9392.28]},{"m":"Ago/27","total":48880.18,"loans":[14958.63,17363.49,0,0,7165.78,9392.28]},{"m":"Set/27","total":31516.69,"loans":[14958.63,0,0,0,7165.78,9392.28]},{"m":"Out/27","total":31516.69,"loans":[14958.63,0,0,0,7165.78,9392.28]},{"m":"Nov/27","total":24350.91,"loans":[14958.63,0,0,0,0,9392.28]},{"m":"Dez/27","total":24350.91,"loans":[14958.63,0,0,0,0,9392.28]}];
+
+let prYear=2026, prCharts={};
+function setPRYear(y,el){
+  prYear=y;
+  document.querySelectorAll('.yr-btn').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
+  const note=document.getElementById('prNote');
+  if(y===2026) note.innerHTML='📌 <strong>2026:</strong> Jan–Jun = dados <strong>realizados</strong> do ano letivo 2025-26. Jul–Dez = <strong>projeção</strong> (+5% receita / +3% desp. op. / +6% salários vs jul/25–dez/25). Empréstimos conforme cronograma real.';
+  else note.innerHTML='📌 <strong>2027:</strong> Ano inteiro <strong>projetado</strong> com base em 2026 +5% receita / +3% desp. op. / +6% salários. Empréstimos conforme cronograma: custo cai de R$69k → R$25k/mês ao longo do ano.';
+  renderPR();
+}
+
+function renderPR(){
+  const rp=prYear===2026?REC_PREV_2026:REC_PREV_2027;
+  const rr=prYear===2026?REC_REAL_2026:new Array(12).fill(null);
+  const dp=prYear===2026?DESP_PREV_2026:DESP_PREV_2027;
+  const dr=prYear===2026?DESP_REAL_2026:new Array(12).fill(null);
+  const labels=MA.map(m=>m+'/'+(prYear===2026?'26':'27'));
+
+  // KPIs
+  const tRP=rp.reduce((a,b)=>a+b,0), tDP=dp.reduce((a,b)=>a+b,0);
+  const tRR=rr.reduce((a,b)=>a+(b||0),0), tDR=dr.reduce((a,b)=>a+(b||0),0);
+  const hasR=rr.some(v=>v!==null);
+  const resP=tRP-tDP, resR=tRR-tDR;
+  document.getElementById('prKpis').innerHTML=`
+    <div class="kpi blue"><div class="kpi-label">Receita Prevista</div><div class="kpi-value blue">${fmt(tRP,true)}</div><div class="kpi-sub">Meta anual ${prYear}</div></div>
+    <div class="kpi ${hasR?'green':'yellow'}"><div class="kpi-label">Receita ${hasR?'Realizada':'Projetada'}</div><div class="kpi-value ${hasR?'green':'yellow'}">${hasR?fmt(tRR,true):fmt(tRP,true)}</div><div class="kpi-sub">${hasR?'Jan–Jun/26 real':'Projeção anual'}</div></div>
+    <div class="kpi red"><div class="kpi-label">Despesa Prevista</div><div class="kpi-value red">${fmt(tDP,true)}</div><div class="kpi-sub">Meta anual ${prYear}</div></div>
+    <div class="kpi ${hasR?'orange':'yellow'}"><div class="kpi-label">Despesa ${hasR?'Realizada':'Projetada'}</div><div class="kpi-value ${hasR?'orange':'yellow'}">${hasR?fmt(tDR,true):fmt(tDP,true)}</div><div class="kpi-sub">${hasR?'Jan–Jun/26 real':'Projeção anual'}</div></div>
+    <div class="kpi ${resP>=0?'green':'red'}"><div class="kpi-label">Resultado Previsto</div><div class="kpi-value ${resP>=0?'green':'red'}">${fmt(resP,true)}</div><div class="kpi-sub">Meta ${prYear}</div></div>
+    <div class="kpi ${resR>=0?'green':'red'}"><div class="kpi-label">Resultado ${hasR?'Real (Jan–Jun)':'Projetado'}</div><div class="kpi-value ${resR>=0?'green':'red'}">${fmt(hasR?resR:resP,true)}</div><div class="kpi-sub">${hasR?'Jan–Jun acumulado':'Projeção anual'}</div></div>`;
+
+  // Destroy old charts
+  Object.values(prCharts).forEach(c=>{try{c.destroy()}catch(e){}});
+  prCharts={};
+
+  const gOpts=(title,ds)=>({responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top',labels:{boxWidth:10,font:{size:10}}},tooltip:{callbacks:{label:c=>c.dataset.label+': '+fmt(c.raw)}}},scales:{y:{ticks:{callback:v=>fmt(v,true)},grid:{color:'#1e293b'}},x:{grid:{color:'#1e293b'}}}});
+
+  // Receita chart
+  prCharts.rec=new Chart(document.getElementById('cPRRec'),{type:'bar',data:{labels,datasets:[
+    {label:'Previsto',data:rp,backgroundColor:'rgba(59,130,246,.6)',borderColor:'#3b82f6',borderWidth:1.5,borderRadius:3},
+    {label:prYear===2026?'Realizado (Jan–Jun)':'Projeção',data:rr.map((v,i)=>v!==null?v:rp[i]),backgroundColor:rr.map((v,i)=>v!==null?'rgba(34,197,94,.65)':'rgba(234,179,8,.45)'),borderRadius:3}
+  ]},options:gOpts()});
+
+  // Despesa chart
+  prCharts.desp=new Chart(document.getElementById('cPRDesp'),{type:'bar',data:{labels,datasets:[
+    {label:'Previsto',data:dp,backgroundColor:'rgba(239,68,68,.5)',borderColor:'#ef4444',borderWidth:1.5,borderRadius:3},
+    {label:prYear===2026?'Realizado (Jan–Jun)':'Projeção',data:dr.map((v,i)=>v!==null?v:dp[i]),backgroundColor:dr.map((v,i)=>v!==null?'rgba(249,115,22,.65)':'rgba(234,179,8,.45)'),borderRadius:3}
+  ]},options:gOpts()});
+
+  // Resultado chart
+  const resP_m=rp.map((v,i)=>v-dp[i]);
+  const resR_m=rr.map((v,i)=>v!==null?(v-dr[i]):null);
+  prCharts.res=new Chart(document.getElementById('cPRRes'),{type:'bar',data:{labels,datasets:[
+    {label:'Resultado Previsto',data:resP_m,backgroundColor:resP_m.map(v=>v>=0?'rgba(59,130,246,.55)':'rgba(239,68,68,.55)'),borderRadius:3},
+    {type:'line',label:'Resultado Real/Proj.',data:resR_m.map((v,i)=>v!==null?v:resP_m[i]),borderColor:'#eab308',backgroundColor:'rgba(234,179,8,.1)',tension:.3,pointRadius:5,fill:false,borderWidth:2,pointBackgroundColor:resR_m.map((v,i)=>v!==null?'#22c55e':'#eab308')}
+  ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top',labels:{boxWidth:10,font:{size:10}}},tooltip:{callbacks:{label:c=>c.dataset.label+': '+fmt(c.raw)}}},scales:{y:{ticks:{callback:v=>fmt(v,true)},grid:{color:'#1e293b'}},x:{grid:{color:'#1e293b'}}}}});
+
+  // Table
+  const tbl=document.getElementById('tPR');
+  const hasMReal=rr.some(v=>v!==null);
+  let h=`<thead><tr><th>Mês</th><th>Rec. Prevista</th><th>Rec. ${hasMReal?'Realizada':'Projeção'}</th><th>Var. Rec.</th><th>Desp. Prevista</th><th>Desp. ${hasMReal?'Realizada':'Projeção'}</th><th>Var. Desp.</th><th>Res. Previsto</th><th>Res. ${hasMReal?'Realizado':'Proj.'}</th><th>Var. Res.</th></tr></thead><tbody>`;
+  let annRP=0,annRR=0,annDP=0,annDR=0;
+  for(let i=0;i<12;i++){
+    const isReal=rr[i]!==null;
+    const rrv=isReal?rr[i]:rp[i]; const drv=isReal?dr[i]:dp[i];
+    const vrec=rrv-rp[i], vdesp=drv-dp[i], vres=(rrv-drv)-(rp[i]-dp[i]);
+    annRP+=rp[i]; annRR+=rrv; annDP+=dp[i]; annDR+=drv;
+    h+=`<tr>
+      <td>${labels[i]}${isReal?' ✓':''}</td>
+      <td class="pr-p">${fmt(rp[i],true)}</td>
+      <td class="${isReal?'pr-r':'pr-fut'}">${fmt(rrv,true)}${isReal?'':' *'}</td>
+      <td class="${vrec>=0?'pr-vpos':'pr-vneg'}">${vrec>=0?'+':''}${fmt(vrec,true)}</td>
+      <td class="pr-p">${fmt(dp[i],true)}</td>
+      <td class="${isReal?'pr-r':'pr-fut'}">${fmt(drv,true)}${isReal?'':' *'}</td>
+      <td class="${vdesp<=0?'pr-vpos':'pr-vneg'}">${vdesp<=0?'':'+'}${fmt(vdesp,true)}</td>
+      <td class="${(rp[i]-dp[i])>=0?'pr-vpos':'pr-vneg'}">${fmt(rp[i]-dp[i],true)}</td>
+      <td class="${(rrv-drv)>=0?'pr-vpos':'pr-vneg'}">${fmt(rrv-drv,true)}${isReal?'':' *'}</td>
+      <td class="${vres>=0?'pr-vpos':'pr-vneg'}">${vres>=0?'+':''}${fmt(vres,true)}</td>
+    </tr>`;
+  }
+  const annRes=(annRP-annDP), annResR=(annRR-annDR);
+  h+=`<tr class="tot-row">
+    <td>TOTAL ${prYear}</td>
+    <td class="pr-p">${fmt(annRP,true)}</td><td>${fmt(annRR,true)} *</td><td class="${(annRR-annRP)>=0?'pr-vpos':'pr-vneg'}">${fmt(annRR-annRP,true)}</td>
+    <td class="pr-p">${fmt(annDP,true)}</td><td>${fmt(annDR,true)} *</td><td class="${(annDR-annDP)<=0?'pr-vpos':'pr-vneg'}">${fmt(annDR-annDP,true)}</td>
+    <td class="${annRes>=0?'pr-vpos':'pr-vneg'}">${fmt(annRes,true)}</td><td class="${annResR>=0?'pr-vpos':'pr-vneg'}">${fmt(annResR,true)} *</td><td class="${(annResR-annRes)>=0?'pr-vpos':'pr-vneg'}">${fmt(annResR-annRes,true)}</td>
+  </tr><tr><td colspan="10" style="font-size:0.66rem;color:#475569;padding:5px 8px">* meses futuros = projeção baseada no histório Jul/25–Jun/26 com crescimento aplicado | ✓ = dado realizado</td></tr></tbody>`;
+  tbl.innerHTML=h;
+
+  // Loan cards
+  const lcEl=document.getElementById('loanCards');
+  const loanTotals=LOAN_NAMES.map((_,li)=>({name:LOAN_NAMES[li],end:LOAN_END[li],monthly:LOAN_SCHED.find(s=>s.loans[li]>0)?.loans[li]||0,active:LOAN_SCHED.some(s=>s.loans[li]>0)}));
+  lcEl.innerHTML=loanTotals.map(l=>`<div class="loan-card"><div class="lc-name">${l.name}</div><div class="lc-val">${l.active?fmt(l.monthly,true):'Quitado'}</div><div class="lc-end">Até ${l.end}</div></div>`).join('');
+
+  // Loan table
+  const ltbl=document.getElementById('tLoan');
+  let lh=`<thead><tr><th>Mês</th>${LOAN_NAMES.map(n=>`<th>${n}</th>`).join('')}<th>Total</th></tr></thead><tbody>`;
+  LOAN_SCHED.forEach(s=>{const tot=s.loans.reduce((a,b)=>a+b,0);lh+=`<tr><td>${s.m}</td>${s.loans.map(v=>`<td>${v?fmt(v,true):'—'}</td>`).join('')}<td class="bold">${fmt(tot,true)}</td></tr>`;});
+  lh+='</tbody>';
+  ltbl.innerHTML=lh;
+}
+renderPR();
+</script>
+</body>
+</html>
